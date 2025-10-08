@@ -6,11 +6,6 @@ import 'custom_tabbar.dart';
 import 'CardPage.dart';
 
 
-void main() => runApp(const MaterialApp(
-  debugShowCheckedModeBanner: false,
-  home: HomePage(),
-));
-
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
   @override
@@ -124,6 +119,7 @@ class _HomePageState extends State<HomePage>
               const Center(child: Text("suggestions page")),
             ],
           ),
+
         ),
 
         // ✅ البار السفلي
@@ -134,6 +130,7 @@ class _HomePageState extends State<HomePage>
             });
           },
         ),
+
       ),
     );
   }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'dart:math';
+import 'package:mediator_mvp/start_page/auth.dart';
+
+import 'package:mediator_mvp/start_page/log_in.dart';
 
 class BottomBar extends StatefulWidget {
   final Function(int) onItemSelected;
@@ -63,7 +66,9 @@ class _BottomBarState extends State<BottomBar> {
         child: Icon(
           icons[index],
           size: index == 2 ? screenWidth * 0.12 : screenWidth * 0.08, // 👈 زر Home أكبر
-          color: isSelected ? const Color(0xFF0057D9) : const Color(0xFFFF6600),        ),
+          color: isSelected ? const Color(0xFF0057D9) : const Color(0xFFFF6600),
+
+        ),
       );
     });
 
@@ -74,13 +79,22 @@ class _BottomBarState extends State<BottomBar> {
       color: widget.color,
       backgroundColor: widget.backgroundColor,
       buttonBackgroundColor: Colors.white,
-      onTap: (index) {
-        setState(() {
-          currentIndex = index;
-        });
-        widget.onItemSelected(index);
+      onTap: (index) async {   // 👈 خلي onTap async
+        if (index == 4) {      // 👈 إذا كبس الخامس
+          await auth().signOut();
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+        } else {
+          setState(() {
+            currentIndex = index;
+          });
+          widget.onItemSelected(index);
+        }
       },
       items: navItems,
     );
+
   }
 }
