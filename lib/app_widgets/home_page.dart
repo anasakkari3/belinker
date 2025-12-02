@@ -157,7 +157,9 @@ class _HomePageState extends State<HomePage> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: Padding(
+          padding: const EdgeInsets.only(bottom: 12.0),
+        child: FloatingActionButton.extended(
         onPressed: () {
           CustomDialogWidget.show(context);
         },
@@ -165,7 +167,8 @@ class _HomePageState extends State<HomePage> {
         icon: const Icon(Icons.add),
         backgroundColor: accentOrange,
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endContained,
     );
   }
 }
