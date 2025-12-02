@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "287699100626",
+    "project_id": "matchmaking-35a64",
+    "storage_bucket": "matchmaking-35a64.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:287699100626:android:99d3264bbcebf331325e0b",
+        "android_client_info": {
+          "package_name": "com.example.mediator_mvp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "287699100626-a8r58gvbgrkcgqb8o6uj7lb41pdmqik1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mediator_mvp",
+            "certificate_hash": "005396b29e1bb67edffbd268d48ad9f130d214de"
+          }
+        },
+        {
+          "client_id": "287699100626-mtqkr1v61j6eqovt0mupqq5jncg1ndos.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXE3mBggLFALfI28Jqx12kBIRo2345Ldg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "287699100626-mtqkr1v61j6eqovt0mupqq5jncg1ndos.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
