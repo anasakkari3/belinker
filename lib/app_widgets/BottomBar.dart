@@ -55,7 +55,7 @@ class BottomBar extends StatelessWidget {
         padding: EdgeInsets.all(screenWidth * 0.015),
         child: Icon(
           icons[index],
-          size: index == 2 ? screenWidth * 0.12 : screenWidth * 0.08,
+          size: index == 2 ? screenWidth * 0.07 : screenWidth * 0.06,
           color: isSelected ? const Color(0xFF0057D9) : const Color(0xFFFF6600),
         ),
       );

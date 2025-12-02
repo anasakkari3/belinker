@@ -12,6 +12,7 @@ class Cardpage extends StatelessWidget {
   final String location;
   final dynamic docId;
   final String userId; // 👈 مهم
+  final String collectionName;
 
   const Cardpage({
     super.key,
@@ -24,6 +25,7 @@ class Cardpage extends StatelessWidget {
     required this.location,
     required this.docId,
     required this.userId,
+    required this.collectionName,
   });
 
   @override
@@ -34,7 +36,10 @@ class Cardpage extends StatelessWidget {
       onTap: () {
         showDialog(
           context: context,
-          builder: (context) => AnimatedPopUp(docId: docId),
+          builder: (context) => AnimatedPopUp(
+            docId: docId,
+            collectionName: collectionName, // 👈 مرّرها للبوب أب
+          ),
         );
       },
       child: Card(
@@ -58,74 +63,84 @@ class Cardpage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // 🔹 شريط معلومات المستخدم (اسم + صورة)
-                SizedBox(
-                  height: cardHeight * 0.2,
-                  child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                    future: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(userId)
-                        .get(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        );
-                      }
-
-                      if (!snapshot.hasData || !snapshot.data!.exists) {
-                        // لو ما في بيانات للمستخدم
-                        return Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Row(
-                            children: const [
-                              CircleAvatar(child: Icon(Icons.person)),
-                              SizedBox(width: 8),
-                              Expanded(child: Text("Unknown user")),
-                            ],
-                          ),
-                        );
-                      }
-
-                      final data = snapshot.data!.data()!;
-                      final userName =
-                      (data['fullName'] ?? 'User').toString(); // ✅ بدل name
-                      final photoUrl =
-                      (data['photoUrl'] ?? '').toString();     // ✅ بدل أي حقل غلط
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: cardWidth * 0.10,
-                              backgroundImage: photoUrl.isNotEmpty
-                                  ? NetworkImage(photoUrl)
-                                  : const AssetImage('assets/user.png')
-                              as ImageProvider,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                userName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: cardWidth * 0.10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+// 🔹 شريط معلومات المستخدم (اسم + صورة)
+              SizedBox(
+              height: cardHeight * 0.2,
+              child: userId.isEmpty
+                  ? Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: const [
+                    CircleAvatar(child: Icon(Icons.person)),
+                    SizedBox(width: 8),
+                    Expanded(child: Text("Unknown user")),
+                  ],
                 ),
+              )
+                  : FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                future: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(userId)
+                    .get(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    );
+                  }
+
+                  if (!snapshot.hasData || !snapshot.data!.exists) {
+                    return Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        children: const [
+                          CircleAvatar(child: Icon(Icons.person)),
+                          SizedBox(width: 8),
+                          Expanded(child: Text("Unknown user")),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final data = snapshot.data!.data()!;
+                  final userName = (data['fullName'] ?? 'User').toString();
+                  final photoUrl = (data['photoUrl'] ?? '').toString();
+
+                  return Padding(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: cardWidth * 0.10,
+                          backgroundImage: photoUrl.isNotEmpty
+                              ? NetworkImage(photoUrl)
+                              : const AssetImage('assets/user.png')
+                          as ImageProvider,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            userName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: cardWidth * 0.10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
 
                 // 🔹 عنوان الخدمة في النص
                 Padding(

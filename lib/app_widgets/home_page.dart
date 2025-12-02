@@ -16,19 +16,30 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
+class _HomePageState extends State<HomePage> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _selectedFilter = 'all'; // all / request / service
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+  Stream<QuerySnapshot> _getStream() {
+    // لو اختار "Services" → نجيب من كولكشن الخدمات
+    if (_selectedFilter == 'service') {
+      return FirebaseFirestore.instance
+          .collection('services')
+          .orderBy('createdAt', descending: true)
+          .snapshots();
+    }
+
+    // باقي الحالات (all + request) → نجيب من requests
+    return FirebaseFirestore.instance
+        .collection('requests')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
   @override
@@ -38,97 +49,112 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
-            CustomSliverTabBar(controller: _tabController),
+            CustomSliverTabBar(
+              searchController: _searchController,
+              onSearchChanged: (value) {
+                setState(() => _searchQuery = value);
+              },
+              selectedFilter: _selectedFilter,
+              onFilterChanged: (value) {
+                setState(() => _selectedFilter = value);
+              },
+            ),
           ];
         },
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            // ✅ التبويب الأول: عرض الطلبات من Firestore
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('requests')
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+        body: StreamBuilder<QuerySnapshot>(
+          stream: _getStream(),
+
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Center(child: Text('No requests yet 😴'));
+            }
+
+            final allDocs = snapshot.data!.docs;
+
+            // 🔍 فلترة حسب السيرش + نوع الفلتر
+            final filteredDocs = allDocs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+
+              final title =
+              (data['serviceType'] ?? '').toString().toLowerCase();
+              final desc =
+              (data['description'] ?? '').toString().toLowerCase();
+
+              final matchesSearch = _searchQuery.isEmpty ||
+                  title.contains(_searchQuery) ||
+                  desc.contains(_searchQuery);
+
+              return matchesSearch;
+            }).toList();
+
+
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final double width = constraints.maxWidth;
+
+                int crossAxisCount = 2;
+                if (width > 900) {
+                  crossAxisCount = 4;
+                } else if (width > 600) {
+                  crossAxisCount = 3;
                 }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No requests yet 😴'));
-                }
 
-                final requests = snapshot.data!.docs;
+                return GridView.builder(
+                  padding: const EdgeInsets.all(8),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 15,
+                    mainAxisSpacing: 15,
+                    childAspectRatio: 0.9,
+                  ),
+                  itemCount: filteredDocs.length,
+                  itemBuilder: (context, index) {
+                    final req = filteredDocs[index];
+                    final data = req.data() as Map<String, dynamic>;
 
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final double width = constraints.maxWidth;
+                    final locationMap =
+                        data['location'] as Map<String, dynamic>? ?? {};
+                    final addressMap =
+                        locationMap['address'] as Map<String, dynamic>? ?? {};
 
-                    int crossAxisCount = 2;
-                    if (width > 900) {
-                      crossAxisCount = 4;
-                    } else if (width > 600) {
-                      crossAxisCount = 3;
+                    final String userId = (data['userId'] ?? '').toString();
+
+                    late String imageUrl;
+                    final rawUrl = (data['imageUrl'] ?? '').toString().trim();
+                    if (rawUrl.isNotEmpty &&
+                        (rawUrl.startsWith('http') ||
+                            rawUrl.startsWith('https'))) {
+                      imageUrl = rawUrl;
+                    } else {
+                      imageUrl = 'assets/logo.png';
                     }
+                    final String collectionName =
+                    _selectedFilter == 'service' ? 'services' : 'requests';
 
-                    return GridView.builder(
-                      padding: const EdgeInsets.all(8),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        crossAxisSpacing: 15,   // 🔹 مسافة منطقية بين الكروت
-                        mainAxisSpacing: 15,
-                        childAspectRatio: 0.9, // 🔹 تحكم بحجم الكرت (جرّب 0.8 / 1.0 لو حاب)
-                      ),
-                      itemCount: requests.length,
-                      itemBuilder: (context, index) {
-                        final req = requests[index];
-                        final data = req.data() as Map<String, dynamic>;
-
-                        final locationMap =
-                            data['location'] as Map<String, dynamic>? ?? {};
-                        final addressMap =
-                            locationMap['address'] as Map<String, dynamic>? ?? {};
-
-                        // 🔹 userId عشان نجيب اسم وصورة المستخدم جوّا الكرت
-                        final String userId = (data['userId'] ?? '').toString();
-
-                        // 🔹 تحديد الصورة النهائية
-                        late String imageUrl;
-                        final rawUrl = (data['imageUrl'] ?? '').toString().trim();
-                        if (rawUrl.isNotEmpty &&
-                            (rawUrl.startsWith('http') || rawUrl.startsWith('https'))) {
-                          imageUrl = rawUrl;
-                        } else {
-                          imageUrl = 'assets/logo.png';
-                        }
-
-
-
-                        return Cardpage(
-                          docId: req.id,
-                          title: data['serviceType'] ?? 'Untitled Request',
-                          imageUrl: imageUrl,
-                          description: data['description'] ?? '',
-                          price: data['price']?.toString() ?? '0',
-                          postDate: (data['createdAt'] is Timestamp)
-                              ? (data['createdAt'] as Timestamp).toDate()
-                              : DateTime.now(),
-                          requestDate: DateTime.tryParse(data['date'] ?? '') ?? DateTime.now(),
-                          location: addressMap['city'] ?? 'Unknown',
-                          userId: userId, // ✅ لا تنساه
-                        );
-
-                      },
+                    return Cardpage(
+                      docId: req.id,
+                      title: data['serviceType'] ?? 'Untitled Request',
+                      imageUrl: imageUrl,
+                      description: data['description'] ?? '',
+                      price: data['price']?.toString() ?? '0',
+                      postDate: (data['createdAt'] is Timestamp)
+                          ? (data['createdAt'] as Timestamp).toDate()
+                          : DateTime.now(),
+                      requestDate:
+                      DateTime.tryParse(data['date'] ?? '') ??
+                          DateTime.now(),
+                      location: addressMap['city'] ?? 'Unknown',
+                      userId: userId,
+                      collectionName: collectionName,
                     );
                   },
                 );
               },
-            ),
-
-            // ✅ تبويبات أخرى
-            const Center(child: Text("Service Page Content")),
-            const Center(child: Text("Suggestions Page Content")),
-          ],
+            );
+          },
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(

@@ -7,6 +7,8 @@ import 'dart:io';
 import 'package:map_location_picker/map_location_picker.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart' as geo;
+import 'package:firebase_auth/firebase_auth.dart';
+
 
 import '../utils/service_types.dart';
 
@@ -68,7 +70,6 @@ class _ServiceDialogContentState extends State<_ServiceDialogContent> {
   }
 
   Future<void> _uploadService() async {
-    // لا يوجد تغيير في هذه الدالة
     try {
       String? imageUrl;
       if (selectedImage != null) {
@@ -89,7 +90,11 @@ class _ServiceDialogContentState extends State<_ServiceDialogContent> {
         return;
       }
 
+      // 👇 المستخدم الحالي
+      final user = FirebaseAuth.instance.currentUser;
+
       final data = {
+        "userId": user?.uid ?? "",                    // 👈 مهم
         "serviceType": selectedRequestType ?? "",
         "description": descriptionController.text,
         "price": double.tryParse(priceController.text) ?? 0,
@@ -110,11 +115,6 @@ class _ServiceDialogContentState extends State<_ServiceDialogContent> {
 
       await FirebaseFirestore.instance.collection("services").add(data);
 
-
-
-
-
-      // ✅ إغلاق الديالوج عند النجاح
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -129,6 +129,7 @@ class _ServiceDialogContentState extends State<_ServiceDialogContent> {
       }
     }
   }
+
   String? selectedRequestType;
   // ✅ دالة الـ build الآن تبني محتوى الديالوج فقط
   @override

@@ -12,10 +12,13 @@ const Color cardText = Color(0xFF1E293B);
 
 class AnimatedPopUp extends StatefulWidget {
   final dynamic docId;
+  final String collectionName;
 
   const AnimatedPopUp({
     super.key,
     required this.docId,
+    required this.collectionName,
+
   });
 
   @override
@@ -69,9 +72,10 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
               child: Container(
                 color: cardBg,
                 child: FutureBuilder<DocumentSnapshot>(
+
                   future: FirebaseFirestore.instance
-                      .collection('requests')
-                      .doc(widget.docId)
+                      .collection(widget.collectionName)
+                      .doc(widget.docId.toString())
                       .get(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {

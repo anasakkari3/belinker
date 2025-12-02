@@ -1,85 +1,206 @@
+// lib/app_widgets/custom_tabbar.dart
+
 import 'package:flutter/material.dart';
 
-
 class CustomSliverTabBar extends StatelessWidget {
-  final TabController controller;
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
 
-  const CustomSliverTabBar({super.key, required this.controller});
+  /// "all" or "request" or "service"
+  final String selectedFilter;
+  final ValueChanged<String> onFilterChanged;
+
+  const CustomSliverTabBar({
+    super.key,
+    required this.searchController,
+    required this.onSearchChanged,
+    required this.selectedFilter,
+    required this.onFilterChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+    final Size size = MediaQuery.of(context).size;
+    final double screenHeight = size.height;
+
+    // 👇 ارتفاع الهيدر يعتمد على حجم الشاشة (ريسبونسف)
+    // بين 14% - 18% من ارتفاع الشاشة بيكون ممتاز لمعظم الأجهزة
+    final double headerHeight = screenHeight * 0.16;
+
     return SliverPersistentHeader(
       floating: true,
       pinned: false,
-      delegate: _TabBarDelegate(
-        TabBar(
-          controller: controller,
-          isScrollable: true,
-          labelPadding: EdgeInsets.symmetric(
-            horizontal: MediaQuery.of(context).size.width * 0.07,
-          ),
-          indicator: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(25),
-          ),
-          indicatorSize: TabBarIndicatorSize.tab,
-          indicatorPadding: EdgeInsets.symmetric(
-            horizontal: screenWidth * -0.02,
-            vertical: screenHeight * 0.005,
-          ),
-
-          labelColor: Color(0xFF0057D9),
-          unselectedLabelColor: Color(0xFFFF6600),
-          tabAlignment: TabAlignment.center,
-          dividerColor:Colors.transparent,
-          tabs: const [
-            Tab(icon: Icon(Icons.request_page), text: "request"),
-            Tab(icon: Icon(Icons.home_repair_service), text: "service"),
-            Tab(icon: Icon(Icons.lightbulb), text: "suggestions"),
-          ],
-        ),
+      delegate: _SearchFilterHeaderDelegate(
+        minHeight: headerHeight,
+        maxHeight: headerHeight,
+        searchController: searchController,
+        onSearchChanged: onSearchChanged,
+        selectedFilter: selectedFilter,
+        onFilterChanged: onFilterChanged,
       ),
     );
   }
 }
 
-class _TabBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar tabBar;
-  _TabBarDelegate(this.tabBar);
+class _SearchFilterHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+  final String selectedFilter;
+  final ValueChanged<String> onFilterChanged;
+
+  _SearchFilterHeaderDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.searchController,
+    required this.onSearchChanged,
+    required this.selectedFilter,
+    required this.onFilterChanged,
+  });
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final Size size = MediaQuery.of(context).size;
+    final double width = size.width;
+    final double height = size.height;
+
+    final double padding = width * 0.04;
+    final double searchBarHeight = height * 0.06;
+    final double cardBorderRadius = 16;
+    final double searchFontSize = width * 0.042;
 
     return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: screenWidth * 0.03,
-        vertical: screenHeight * 0.01,
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: EdgeInsets.only(
+        left: padding,
+        right: padding,
+        top: height * 0.01,
+        bottom: height * 0.01,
       ),
-      padding: EdgeInsets.all(screenWidth * 0.01),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(screenWidth * 0.04),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: screenWidth * 0.015,
-            offset: Offset(0, screenHeight * 0.003),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 🔍 Search bar
+          Container(
+            height: searchBarHeight,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(cardBorderRadius * 3),
+            ),
+            child: TextField(
+              controller: searchController,
+              onChanged: (value) => onSearchChanged(value.toLowerCase()),
+              decoration: InputDecoration(
+                hintText: 'Search',
+                hintStyle: TextStyle(
+                  fontSize: searchFontSize,
+                  color: Colors.grey.shade500,
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: Colors.grey.shade500,
+                  size: width * 0.06,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: height * 0.018,
+                  horizontal: padding * 0.5,
+                ),
+              ),
+              style: TextStyle(
+                fontSize: searchFontSize,
+                // 👇 خلي النص غامق عشان ما يختفي على الخلفية البيضا
+                color: Colors.black87,
+              ),
+            ),
           ),
+
+          SizedBox(height: height * 0.015),
+
+          // ⚙️ Filter chips: All / Requests / Services
+          Align(
+            alignment: Alignment.centerLeft, // 👈 يلزق كل الصف بأقصى اليسار
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min, // 👈 ما يتمدّد، بس قد الأزرار
+                children: [
+                  _buildFilterChip(
+                    context: context,
+                    label: 'All',
+                    value: 'all',
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    context: context,
+                    label: 'Requests',
+                    value: 'request',
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    context: context,
+                    label: 'Services',
+                    value: 'service',
+                  ),
+                ],
+              ),
+            ),
+          ),
+
         ],
       ),
-      child: tabBar,
+    );
+  }
+
+  Widget _buildFilterChip({
+    required BuildContext context,
+    required String label,
+    required String value,
+  }) {
+    final bool isSelected = selectedFilter == value;
+    final double fontSize = MediaQuery.of(context).size.width * 0.035;
+
+    return GestureDetector(
+      onTap: () => onFilterChanged(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds:400),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xE3CDBBFF)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(0xFF0057D9),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF0057D9) : const Color(0xFFFF6600),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: fontSize,
+            color: isSelected ? Colors.black : Colors.grey,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 
   @override
-  double get maxExtent => tabBar.preferredSize.height + 20;
-  @override
-  double get minExtent => tabBar.preferredSize.height + 20;
+  double get maxExtent => maxHeight;
 
   @override
-  bool shouldRebuild(covariant _TabBarDelegate oldDelegate) => false;
+  double get minExtent => minHeight;
+
+  @override
+  bool shouldRebuild(covariant _SearchFilterHeaderDelegate oldDelegate) {
+    return oldDelegate.selectedFilter != selectedFilter ||
+        oldDelegate.searchController != searchController ||
+        oldDelegate.minHeight != minHeight ||
+        oldDelegate.maxHeight != maxHeight;
+  }
 }
