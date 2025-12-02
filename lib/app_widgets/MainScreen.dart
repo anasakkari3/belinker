@@ -5,6 +5,7 @@ import 'package:mediator_mvp/app_widgets/ProfilePage.dart';
 import 'home_page.dart';
 import 'DoneDealsPage.dart';
 import 'BottomBar.dart';
+import 'ChatRoomsPage.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -21,7 +22,7 @@ class _MainScreenState extends State<MainScreen> {
     Center(child: Text('Favorites Page')), // Index 0: star
     DoneDealsPage(),                    // Index 1: handshake
     HomePage(),                         // Index 2: home
-    Center(child: Text('Messages Page')), // Index 3: chat
+    ChatRoomsPage(), // Index 3: chat
     ProfilePage(),  // Index 4: account_circle
   ];
 
