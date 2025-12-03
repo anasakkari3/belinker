@@ -148,7 +148,7 @@ class _ChatRoomsPageState extends State<ChatRoomsPage> {
                     final chatRoom = chatRooms[index];
                     final participants =
                     List<String>.from(chatRoom['participantNames'] ?? []);
-                    final chatRoomName = participants.join(', ');
+                    final chatRoomName = participants.join(' ');
 
                     return GestureDetector(
                       onTap: () {

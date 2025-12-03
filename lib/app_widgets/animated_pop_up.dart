@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'ChatPage.dart';
 
 const Color primaryBlue = Color(0xFF0D47A1);
 const Color accentOrange = Color(0xFFF57C00);
@@ -18,7 +19,6 @@ class AnimatedPopUp extends StatefulWidget {
     super.key,
     required this.docId,
     required this.collectionName,
-
   });
 
   @override
@@ -48,6 +48,60 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
     );
   }
 
+  // ----------------------------
+  // 📌 FIXED CHAT FUNCTION HERE
+  // ----------------------------
+  Future<void> _openChatFromPopup(BuildContext context, String otherUserId) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    // 1. Fetch other user's real name from users/{ownerId}
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(otherUserId)
+        .get();
+
+    final otherUserData = userDoc.data() ?? {};
+
+    final otherUserName = (otherUserData['fullName'] ??
+        otherUserData['displayName'] ??
+        otherUserData['name'] ??
+        otherUserData['username'] ??
+        "Unknown User")
+        .toString();
+
+    // 2. Sort participants to form unique chatRoomId
+    final ids = [currentUser.uid, otherUserId]..sort();
+    final chatRoomId = ids.join('_');
+
+    // 3. Create or update chat room
+    await FirebaseFirestore.instance
+        .collection('chatRooms')
+        .doc(chatRoomId)
+        .set({
+      'participants': [currentUser.uid, otherUserId],
+      'createdAt': DateTime.now(),
+      'participantNames': [
+        currentUser.displayName ?? "You",
+        otherUserName,
+      ],
+    }, SetOptions(merge: true));
+
+    // 4. Close popup and open chat page
+    if (!context.mounted) return;
+
+    Navigator.of(context).pop(); // close popup
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatPage(
+          chatRoomId: chatRoomId,
+          chatRoomName: otherUserName,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context).size;
@@ -65,14 +119,13 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
           return ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: isLarge ? 600 : media.width * 0.95,
-              maxHeight: media.height * 0.9, // ✅ تقليل الحد الأقصى ليكفي الكل
+              maxHeight: media.height * 0.9,
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: Container(
                 color: cardBg,
                 child: FutureBuilder<DocumentSnapshot>(
-
                   future: FirebaseFirestore.instance
                       .collection(widget.collectionName)
                       .doc(widget.docId.toString())
@@ -80,7 +133,8 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(
-                          child: CircularProgressIndicator(color: accentOrange));
+                        child: CircularProgressIndicator(color: accentOrange),
+                      );
                     }
 
                     if (!snapshot.hasData || !snapshot.data!.exists) {
@@ -103,9 +157,7 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                     double? lat;
                     double? lng;
 
-// ✅ إذا العنوان موجود كـ Map
                     if (address is Map) {
-                      // ✅ فقط نعرض المدينة والدولة
                       final city = address['city']?.toString().trim() ?? '';
                       final country = address['country']?.toString().trim() ?? '';
                       location = [city, country]
@@ -113,7 +165,6 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                           .join(', ')
                           .trim();
 
-                      // ✅ استخراج الإحداثيات (من geo)
                       final geo = address['geo'];
                       if (geo is List && geo.length >= 2) {
                         try {
@@ -126,23 +177,29 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                       }
                     }
 
-
-
                     final price = data['price']?.toString() ?? '0';
+
+                    // ----------------------------
+                    // 📌 The FIX: ownerId only!
+                    // ----------------------------
+                    final ownerId = data['userId'] ?? '';
+
                     final postDate = (data['createdAt'] is Timestamp)
                         ? (data['createdAt'] as Timestamp).toDate()
                         : DateTime.now();
+
                     final requestDate = DateTime.tryParse(data['date'] ?? '') ??
                         DateTime.now();
 
-                    final double titleSize = isLarge ? 24 : media.width * 0.05;
-                    final double textSize = isLarge ? 16 : media.width * 0.035;
+                    final double titleSize =
+                    isLarge ? 24 : media.width * 0.05;
+                    final double textSize =
+                    isLarge ? 16 : media.width * 0.035;
 
                     return SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // --- IMAGE ---
                           AspectRatio(
                             aspectRatio: 16 / 9,
                             child: Image(
@@ -151,7 +208,8 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                                   : AssetImage(imageUrl) as ImageProvider,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) =>
-                                  Image.asset('assets/logo.png', fit: BoxFit.cover),
+                                  Image.asset('assets/logo.png',
+                                      fit: BoxFit.cover),
                             ),
                           ),
 
@@ -168,24 +226,27 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                                 ),
                                 Flexible(
                                   child: TextButton.icon(
-                                    icon: Icon(Icons.location_on_outlined,
-                                        size: textSize, color: primaryBlue),
+                                    icon: Icon(
+                                      Icons.location_on_outlined,
+                                      size: textSize,
+                                      color: primaryBlue,
+                                    ),
                                     label: Text(
                                       location,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                          color: primaryBlue,
-                                          fontSize: textSize - 2,
-                                          fontWeight: FontWeight.w600),
+                                        color: primaryBlue,
+                                        fontSize: textSize - 2,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                     onPressed: () async {
                                       String mapsUrl;
 
                                       if (lat != null && lng != null) {
-                                        // ✅ نفتح الإحداثيات الدقيقة
-                                        mapsUrl = "https://www.google.com/maps/search/?api=1&query=$lat,$lng";
+                                        mapsUrl =
+                                        "https://www.google.com/maps/search/?api=1&query=$lat,$lng";
                                       } else {
-                                        // ✅ fallback بالعنوان
                                         mapsUrl =
                                         "https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(location)}";
                                       }
@@ -193,28 +254,36 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                                       try {
                                         final uri = Uri.parse(mapsUrl);
                                         if (await canLaunchUrl(uri)) {
-                                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                          await launchUrl(uri,
+                                              mode: LaunchMode.externalApplication);
                                         } else {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text("Could not open Google Maps ❌")),
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content:
+                                              Text("Could not open Google Maps ❌"),
+                                            ),
                                           );
                                         }
                                       } catch (e) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text("Error opening Maps: $e")),
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text("Error opening Maps: $e"),
+                                          ),
                                         );
                                       }
                                     },
-
-
                                     style: TextButton.styleFrom(
                                       backgroundColor:
                                       Colors.blue.withOpacity(0.1),
                                       shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                          BorderRadius.circular(20)),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 4),
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
                                       tapTargetSize:
                                       MaterialTapTargetSize.shrinkWrap,
                                     ),
@@ -224,7 +293,6 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                             ),
                           ),
 
-                          // --- SERVICE TYPE ---
                           Padding(
                             padding: EdgeInsets.symmetric(
                                 horizontal: media.width * 0.04),
@@ -238,7 +306,6 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                             ),
                           ),
 
-                          // --- PRICE & REQUEST DATE ---
                           Padding(
                             padding: EdgeInsets.symmetric(
                                 horizontal: media.width * 0.04, vertical: 8),
@@ -248,9 +315,10 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                                 Text(
                                   "\$$price",
                                   style: TextStyle(
-                                      color: accentOrange,
-                                      fontSize: textSize + 1,
-                                      fontWeight: FontWeight.bold),
+                                    color: accentOrange,
+                                    fontSize: textSize + 1,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 _buildInfoRow(
                                   Icons.event_available_outlined,
@@ -263,7 +331,6 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                             ),
                           ),
 
-                          // --- DESCRIPTION ---
                           Padding(
                             padding: EdgeInsets.all(media.width * 0.04),
                             child: Container(
@@ -272,7 +339,8 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                                 color: Colors.blue.withOpacity(0.05),
                                 borderRadius: BorderRadius.circular(8.0),
                                 border: Border.all(
-                                    color: Colors.blue.withOpacity(0.2)),
+                                  color: Colors.blue.withOpacity(0.2),
+                                ),
                               ),
                               child: Text(
                                 description,
@@ -285,17 +353,46 @@ class _AnimatedPopUpState extends State<AnimatedPopUp> {
                             ),
                           ),
 
-                          // --- CLOSE BUTTON ---
+                          // ----------------------------
+                          // ✔ FIXED CHAT BUTTON
+                          // ----------------------------
                           Align(
                             alignment: Alignment.bottomRight,
                             child: Padding(
                               padding: EdgeInsets.all(media.width * 0.02),
-                              child: TextButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: Text('Close',
-                                    style: TextStyle(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      _openChatFromPopup(context, ownerId);
+                                    },
+                                    icon: const Icon(
+                                      Icons.chat_bubble_outline,
+                                      color: accentOrange,
+                                    ),
+                                    label: Text(
+                                      'Chat',
+                                      style: TextStyle(
+                                        color: accentOrange,
+                                        fontSize: textSize + 1,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                    child: Text(
+                                      'Close',
+                                      style: TextStyle(
                                         color: primaryBlue,
-                                        fontSize: textSize + 2)),
+                                        fontSize: textSize + 2,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
